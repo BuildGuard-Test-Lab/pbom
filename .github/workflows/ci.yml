@@ -1,0 +1,43 @@
+name: PBOM CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build binary
+        run: go build -o bin/pbom ./cmd/pbom
+
+      - name: Dogfood - generate PBOM from this CI run
+        run: bin/pbom generate -o pbom.json
+
+      - name: Validate generated PBOM
+        run: bin/pbom validate pbom.json
+
+      - name: Inspect generated PBOM
+        run: bin/pbom inspect pbom.json
+
+      - name: Upload PBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pbom-${{ github.run_id }}
+          path: pbom.json
+          retention-days: 90
+          if-no-files-found: warn

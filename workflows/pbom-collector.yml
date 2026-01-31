@@ -1,0 +1,143 @@
+# PBOM Collector — Required Workflow
+#
+# Deploy this file to your org's central workflow repository
+# (e.g. org-name/.github or org-name/platform-workflows), then
+# enable it as a Required Workflow via:
+#   Org Settings → Code, planning, and automation → Actions →
+#   Required Workflows → Add workflow
+#
+# This workflow runs automatically on every push and PR across all
+# repositories in the organization. It captures source and build
+# identity metadata (GITHUB_* env vars only) as a PBOM document.
+#
+# Runner-specific data (tool versions, runner OS/arch, secrets
+# accessed, artifact digests) is collected separately by the
+# webhook listener, which queries the developer's actual workflow
+# run via the GitHub API.
+#
+# Repo filtering: Uses GitHub custom properties + pbom-config.yml
+# from the org's .github repo to decide which repos get PBOM
+# collection. If no config exists, all repos are skipped (safe default).
+#
+# Developer impact: ZERO. This workflow:
+#   - Does not check out repo source code
+#   - Does not interfere with the developer's build
+#   - Never blocks a merge (continue-on-error: true)
+#   - Adds ~10-15s to the checks list
+
+name: PBOM Collector
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  collect:
+    name: Collect pipeline metadata
+    runs-on: ubuntu-latest
+    # IMPORTANT: Never block developer workflows. If PBOM collection
+    # fails, log it and move on. Guardrails, not gates.
+    continue-on-error: true
+
+    steps:
+      # ----------------------------------------------------------
+      # 0. Install the PBOM CLI
+      # ----------------------------------------------------------
+      # Option A: Download pre-built binary from a GitHub release.
+      # Uncomment this block once releases are published.
+      #
+      # - name: Install PBOM CLI
+      #   run: |
+      #     PBOM_VERSION="${{ vars.PBOM_VERSION || 'latest' }}"
+      #     curl -sSfL "https://github.com/pbom-dev/pbom/releases/download/${PBOM_VERSION}/pbom-linux-amd64" \
+      #       -o /usr/local/bin/pbom
+      #     chmod +x /usr/local/bin/pbom
+
+      # Option B: Build from source (for development/bootstrapping).
+      # Remove this block once Option A is available.
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: false
+
+      - name: Install PBOM CLI
+        run: go install github.com/pbom-dev/pbom/cmd/pbom@main
+
+      # ----------------------------------------------------------
+      # 1. Repo filtering — evaluate before generating PBOM
+      # ----------------------------------------------------------
+
+      # Fetch the org-level pbom-config.yml from the .github repo.
+      # If the file doesn't exist, all repos are excluded (safe default).
+      - name: Fetch PBOM config
+        id: config
+        run: |
+          STATUS=$(gh api repos/${{ github.repository_owner }}/.github/contents/pbom-config.yml \
+            --jq '.content' 2>/dev/null | base64 -d > /tmp/pbom-config.yml && echo "found" || echo "missing")
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Fetch this repo's custom properties via the GitHub API.
+      - name: Fetch repo properties
+        id: props
+        if: steps.config.outputs.status == 'found'
+        run: |
+          PROPS=$(gh api repos/${{ github.repository }}/properties/values \
+            --jq '[.[] | {(.property_name): .value}] | add // {}')
+          echo "json=$PROPS" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Evaluate filter rules. Exit 0 = include, exit 1 = exclude.
+      - name: Check repo filter
+        id: filter
+        if: steps.config.outputs.status == 'found'
+        run: |
+          if pbom filter --config /tmp/pbom-config.yml \
+            --properties '${{ steps.props.outputs.json }}' \
+            --repo '${{ github.repository }}'; then
+            echo "included=true" >> $GITHUB_OUTPUT
+          else
+            echo "included=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ----------------------------------------------------------
+      # 2. Generate the PBOM (source + build identity only)
+      # ----------------------------------------------------------
+      - name: Generate PBOM
+        if: steps.filter.outputs.included == 'true'
+        run: pbom generate -o ${{ runner.temp }}/pbom.json
+
+      - name: Print PBOM summary
+        if: steps.filter.outputs.included == 'true'
+        run: pbom inspect ${{ runner.temp }}/pbom.json
+
+      # ----------------------------------------------------------
+      # 3. Store the PBOM
+      # ----------------------------------------------------------
+      - name: Upload PBOM artifact
+        if: steps.filter.outputs.included == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pbom-${{ github.run_id }}
+          path: ${{ runner.temp }}/pbom.json
+          retention-days: 90
+          if-no-files-found: warn
+
+      # ----------------------------------------------------------
+      # 4. (Future) Push PBOM to OCI registry
+      # ----------------------------------------------------------
+      # Uncomment once the `pbom push` command is implemented.
+      #
+      # - name: Push PBOM to registry
+      #   if: steps.filter.outputs.included == 'true'
+      #   run: |
+      #     pbom push ${{ runner.temp }}/pbom.json \
+      #       ${{ vars.PBOM_REGISTRY }}/${{ github.repository }}@${{ env.ARTIFACT_DIGEST }}

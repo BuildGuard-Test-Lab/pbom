@@ -1,0 +1,39 @@
+# pbom-config.yml — Repo Filtering Configuration
+#
+# Place this file in your org's .github repo so the Required Workflow
+# can fetch it. Rules use GitHub custom properties to decide which
+# repos get PBOM collection.
+#
+# Rules are evaluated top-to-bottom. First match wins.
+# If no rules match, default_action applies.
+
+version: "1.0"
+filtering:
+  # What happens when no rules match a repo.
+  # "exclude" = opt-in model (only explicitly matched repos get PBOM).
+  # "include" = opt-out model (all repos get PBOM unless excluded).
+  default_action: exclude
+
+  rules:
+    # Explicit opt-in via a boolean custom property.
+    # Set the "pbom-enabled" custom property to "true" on any repo
+    # to enable PBOM collection.
+    - property: "pbom-enabled"
+      value: "true"
+      action: include
+
+    # Include all production and staging tier repos.
+    # Uses the "tier" custom property with multiple allowed values.
+    - property: "tier"
+      values:
+        - "production"
+        - "staging"
+      action: include
+
+    # Exclude deprecated repos even if they match earlier rules.
+    # Since first-match-wins, place this BEFORE broader include rules
+    # if you want it to take priority — or after, to let other rules
+    # override it.
+    - property: "lifecycle"
+      value: "deprecated"
+      action: exclude

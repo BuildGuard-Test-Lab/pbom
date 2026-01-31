@@ -1,0 +1,21 @@
+{
+  "pbom_version": "1.0.0",
+  "id": "f9fd95b6-9038-4ff5-80ad-d9a9bd95abad",
+  "timestamp": "2026-01-30T08:35:45.74853Z",
+  "source": {
+    "repository": "acme-corp/payments-service",
+    "commit_sha": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "branch": "main",
+    "ref": "refs/heads/main",
+    "author": "jane.doe"
+  },
+  "build": {
+    "workflow_run_id": "7890123456",
+    "workflow_name": "CI",
+    "workflow_file": "acme-corp/payments-service/.github/workflows/ci.yml@refs/heads/main",
+    "trigger": "push",
+    "actor": "jane.doe",
+    "started_at": "2026-01-30T08:35:45.74853Z",
+    "status": "success"
+  }
+}

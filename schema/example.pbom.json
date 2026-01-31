@@ -1,0 +1,78 @@
+{
+  "pbom_version": "1.0.0",
+  "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  "timestamp": "2026-01-28T14:30:00Z",
+  "source": {
+    "repository": "acme-corp/payments-service",
+    "commit_sha": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "branch": "main",
+    "ref": "refs/heads/main",
+    "author": "jane.doe"
+  },
+  "build": {
+    "workflow_run_id": "7890123456",
+    "workflow_name": "CI",
+    "workflow_file": ".github/workflows/ci.yml",
+    "trigger": "push",
+    "actor": "jane.doe",
+    "runner": {
+      "os": "ubuntu-22.04",
+      "arch": "X64",
+      "name": "github-hosted",
+      "self_hosted": false
+    },
+    "tool_versions": {
+      "go": "1.22.4",
+      "ko": "0.15.2"
+    },
+    "secrets_accessed": [
+      "GHCR_TOKEN",
+      "COSIGN_KEY"
+    ],
+    "started_at": "2026-01-28T14:25:00Z",
+    "completed_at": "2026-01-28T14:29:45Z",
+    "status": "success"
+  },
+  "artifacts": [
+    {
+      "name": "payments-service",
+      "type": "container-image",
+      "digest": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "uri": "ghcr.io/acme-corp/payments-service@sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "tags": [
+        "v2.4.1",
+        "a1b2c3d"
+      ],
+      "provenance": {
+        "slsa_level": 2,
+        "builder_id": "https://github.com/actions/runner"
+      },
+      "vulnerabilities": {
+        "scanner": "trivy",
+        "scanned_at": "2026-01-28T14:29:00Z",
+        "critical": 0,
+        "high": 1,
+        "medium": 4,
+        "low": 12
+      }
+    }
+  ],
+  "promotion": {
+    "freight_id": "kargo-freight-abc123",
+    "stage": "production",
+    "promoted_by": "jane.doe",
+    "promoted_at": "2026-01-28T15:00:00Z",
+    "environment_snapshot": [
+      {
+        "name": "api-gateway",
+        "digest": "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+        "version": "v3.1.0"
+      },
+      {
+        "name": "auth-service",
+        "digest": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        "version": "v1.8.2"
+      }
+    ]
+  }
+}
